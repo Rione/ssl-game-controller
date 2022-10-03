@@ -5,6 +5,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"log"
 	"net"
+	"syscall"
 )
 
 const maxDatagramSize = 8192
@@ -50,6 +51,18 @@ func (p *Publisher) connect() bool {
 		if err != nil {
 			log.Printf("Could not connect to '%v': %v", addr, err)
 			continue
+		}
+
+		//set multicast ttl 2 by using syscall
+		sc, err := conn.SyscallConn()
+		if err != nil {
+			log.Printf("Could not get syscall connection: %v", err)
+		}
+		sc.Control(func(fd uintptr) {
+			err = syscall.SetsockoptInt(syscall.Handle(fd), syscall.IPPROTO_IP, syscall.IP_MULTICAST_TTL, 2)
+		})
+		if err != nil {
+			log.Printf("Could not set multicast ttl: %v", err)
 		}
 
 		if err := conn.SetWriteBuffer(maxDatagramSize); err != nil {
